@@ -1,11 +1,10 @@
 (ns demo.AntsAppletRunner
   (:import
-        (javax.swing JApplet JPanel JLabel JFrame))
+   (javax.swing JApplet JPanel JLabel JFrame))
   (:gen-class
-    :post-init post-init
-    :main -main))
+   :post-init post-init))
 
-;------
+;;------
 (compile 'demo.AntsApplet2)
 
 (defn -main []
@@ -15,7 +14,7 @@
       (.pack)
       (.setLocationByPlatform true)
       (.setDefaultCloseOperation JFrame/EXIT_ON_CLOSE)
-      (.setVisible true))     
+      (.setVisible true))
     ))
 
-;(-main "s")
+;;(-main "s")
