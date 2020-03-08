@@ -33,7 +33,7 @@
 (def ant-sleep-ms 40)
 (def evap-sleep-ms 1000)
 
-(def running true)
+(def running false)
 
 (defstruct cell :food :pher) ;may also have :ant and :home
 
@@ -297,25 +297,28 @@
 
 ;;(def frame (doto (new JFrame) (.add panel) .pack .show))
 
-(def animator (agent nil))
+(def animator (async/chan))
 
-(defn animation [x]
-  (when running
-    (send-off *agent* #'animation))
-  (. panel (repaint))
-  (. Thread (sleep animation-sleep-ms))
+(defn animation []
+  (async/go-loop []
+    (async/<! animator)
+    (. panel (repaint))
+    (async/<! (async/timeout animation-sleep-ms))
+    (when running
+      (async/go (async/>! animator :a)))
+    (recur))
   nil)
 
 (def evaporator (async/chan))
 
 (defn evaporation []
   (async/go-loop []
-    (let [_ (async/<! evaporator)]
-      (evaporate)
-      (async/<! (async/timeout evap-sleep-ms))
-      (when running
-        (async/go (async/>! evaporator :e)))
-      (recur)))
+    (async/<! evaporator)
+    (evaporate)
+    (async/<! (async/timeout evap-sleep-ms))
+    (when running
+      (async/go (async/>! evaporator :e)))
+    (recur))
   nil)
 
 (defn -post-init [this]
@@ -326,7 +329,8 @@
   (.setVisible this true)
 
   (def ants (setup))
-  (send-off animator animation)
+  (animation)
+  (async/>!! animator :a)
   (dorun (map #(send-off % behave) ants))
   (evaporation)
   (async/>!! evaporator :e)
