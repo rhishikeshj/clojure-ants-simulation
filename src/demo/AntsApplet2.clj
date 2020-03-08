@@ -1,4 +1,5 @@
 (ns demo.AntsApplet2
+  (:require [clojure.core.async :as async])
   (:import
    (javax.swing JApplet))
   (:gen-class
@@ -26,7 +27,7 @@
 ;;scale factor for food drawing
 (def food-scale 30.0)
 ;;evaporation rate
-(def evap-rate 0.99)
+(def evap-rate 0.8)
 
 (def animation-sleep-ms 100)
 (def ant-sleep-ms 40)
@@ -305,13 +306,16 @@
   (. Thread (sleep animation-sleep-ms))
   nil)
 
-(def evaporator (agent nil))
+(def evaporator (async/chan))
 
-(defn evaporation [x]
-  (when running
-    (send-off *agent* #'evaporation))
-  (evaporate)
-  (. Thread (sleep evap-sleep-ms))
+(defn evaporation []
+  (async/go-loop []
+    (let [_ (async/<! evaporator)]
+      (evaporate)
+      (async/<! (async/timeout evap-sleep-ms))
+      (when running
+        (async/go (async/>! evaporator :e)))
+      (recur)))
   nil)
 
 (defn -post-init [this]
@@ -324,7 +328,8 @@
   (def ants (setup))
   (send-off animator animation)
   (dorun (map #(send-off % behave) ants))
-  (send-off evaporator evaporation)
+  (evaporation)
+  (async/>!! evaporator :e)
   )
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;; use ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
